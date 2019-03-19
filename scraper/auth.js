@@ -4,7 +4,6 @@ const {
 } = require("./config");
 
 class Auth {
-  constructor() {}
   async navigate() {
     this.browser = await puppeteer.launch();
     this.page = await this.browser.newPage();
