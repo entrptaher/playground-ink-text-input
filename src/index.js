@@ -1,8 +1,9 @@
 import React, { Component } from "react";
-import { render, Box, Text } from "ink";
+import { render, Box, Text, StdinContext } from "ink";
 import TextInput from "ink-text-input";
 
 import Dummy from "../scraper/dummy";
+import validUrl from "../scraper/utils/valid-url";
 const InputField = ({
   name,
   details,
@@ -34,7 +35,13 @@ const InputField = ({
 class ExampleResponder extends Component {
   state = {
     currentValue: "",
-    url: { value: "", submitted: false },
+    url: {
+      value: "",
+      submitted: false,
+      loaded: false,
+      error: false,
+      counter: 0
+    },
     selector: "",
     statusText: ""
   };
@@ -49,22 +56,60 @@ class ExampleResponder extends Component {
   };
   setUrlStatus = () => {
     const { url } = this.state;
-    url.submitted = true;
+    // confirm if url is valid
+    if (!validUrl(url.value)) {
+      url.value = "";
+      url.error = true;
+      url.submitted = false;
+    } else {
+      url.error = false;
+      url.submitted = true;
+    }
     this.setState({ url });
+
+    // ask the api to navigate to url
+
+    // we show a timer to have interactivity and
+    // set dummy timer otherwise the cli will exit
+    let count = 1;
+    const timer = setInterval(() => {
+      url.counter = count;
+      this.setState({ url });
+      count += 1;
+
+      if (this.state.url.loaded) {
+        url.counter = 0;
+        this.setState({ url });
+        clearInterval(timer);
+      }
+    }, 1000);
+
+    // get navigation status
+  };
+  changeSelector = selector => {
+    this.setState({ selector });
+  };
+  submitSelector = () => {
+    // reset statusText to get fresh data
+    // ask the scraper to fetch new data
+    // statusText is the error or success returned from browser/querySelector
   };
   render() {
     const { currentValue, url, statusText, selector } = this.state;
     // Do not start if no url is provided and user don't initiate the navigation yet
     if (!url || !url.submitted) {
       return (
-        <Box>
-          <Box marginRight={1}>Enter target URL: </Box>
-          <TextInput
-            value={url.value}
-            showCursor={true}
-            onChange={this.setUrl}
-            onSubmit={this.setUrlStatus}
-          />
+        <Box flexDirection="column">
+          {url.error && <Text flex={1}>Please enter correct URL</Text>}
+          <Box flex={1}>
+            <Box marginRight={1}>Enter target URL: </Box>
+            <TextInput
+              value={url.value}
+              showCursor={true}
+              onChange={this.setUrl}
+              onSubmit={this.setUrlStatus}
+            />
+          </Box>
         </Box>
       );
     }
@@ -73,66 +118,26 @@ class ExampleResponder extends Component {
     // ask for new selector nonetheless
     return (
       <Box flexDirection="column">
-        <Text flex={1}>Current URL: {url.value}</Text>
+        <Text flex={1}>
+          Current URL: {url.value}, {url.loaded && "Url is loaded, "} Time
+          Spent: {url.counter}
+        </Text>
         {statusText && selector && (
-          <Text flex={1}>
-            Last Selector: {selector} and Content: {statusText}
-          </Text>
+          <>
+            <Text flex={1}>Last Selector: {selector}</Text>
+            <Text flex={1}>Status Text: {statusText}</Text>
+          </>
         )}
-        <Box flex={1}>
-          <Box marginRight={1}>Selector: </Box>
-          <TextInput
-            value={currentValue}
-            showCursor={true}
-            onChange={this.handleChange}
-          />
-        </Box>
-      </Box>
-    );
-  }
-}
-
-class SearchQuery extends Component {
-  constructor() {
-    super();
-
-    this.state = {
-      currentValue: "",
-      firstName: "",
-      lastName: ""
-    };
-
-    this.handleChange = this.handleChange.bind(this);
-    this.handleSubmit = this.handleSubmit.bind(this);
-  }
-
-  handleChange(value) {
-    this.setState({ currentValue: value });
-  }
-
-  handleSubmit(key, value) {
-    this.setState({ [key]: value, currentValue: "" });
-  }
-
-  render() {
-    const { firstName, lastName, currentValue } = this.state;
-
-    const options = {
-      currentValue,
-      handleChange: this.handleChange,
-      handleSubmit: this.handleSubmit
-    };
-
-    if (!firstName) {
-      return <InputField name="firstName" details="First Name" {...options} />;
-    }
-    if (!lastName) {
-      return <InputField name="lastName" details="Last Name" {...options} />;
-    }
-
-    return (
-      <Box marginRight={1}>
-        Your full name is {firstName} {lastName}
+        {url.loaded && (
+          <Box flex={1}>
+            <Box marginRight={1}>Selector: </Box>
+            <TextInput
+              value={currentValue}
+              showCursor={true}
+              onChange={this.handleChange}
+            />
+          </Box>
+        )}
       </Box>
     );
   }
